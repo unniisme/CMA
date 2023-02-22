@@ -54,8 +54,8 @@ class RowVectorFloat:
         Multiply a vector and a scalar
         """
         ## Scalars can be int or float
-        if type(other) != int and type(other) != float:
-            raise TypeError("Scalar multiplication must be with int or float")
+        if type(other) == type(self):
+            raise TypeError("Cannot multiply vector with vector")
 
         return RowVectorFloat([other*x for x in self.list])
 

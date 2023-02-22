@@ -122,7 +122,7 @@ class Polynomial(RowVectorFloat):
         plt.grid()
         plt.show()
 
-    def fitViaMatrixMethod(self, l):
+    def fitViaMatrixMethod(self, l, showPlot = True):
         """
         Find a polynomial that fits the given list of points using matrix inverse
         """
@@ -144,19 +144,22 @@ class Polynomial(RowVectorFloat):
         self = Polynomial(list(X))
 
         ## Plot
-        numpts = 100
+        if showPlot:
+            numpts = 100
 
-        X = np.linspace(min(input_x),max(input_x), numpts)
+            X = np.linspace(min(input_x),max(input_x), numpts)
 
-        Y = [self[x] for x in X]
+            Y = [self[x] for x in X]
 
-        plt.plot(X,Y)
-        plt.scatter(input_x, b, c='r')
-        plt.title("Polynomial interpolation using matrix method")
-        plt.xlabel("x")
-        plt.ylabel("P(x)")
-        plt.grid()
-        plt.show()
+            plt.plot(X,Y)
+            plt.scatter(input_x, b, c='r')
+            plt.title("Polynomial interpolation using matrix method")
+            plt.xlabel("x")
+            plt.ylabel("P(x)")
+            plt.grid()
+            plt.show()
+
+        return self
 
     def fitViaLagrangePoly(self, l):
         """
@@ -197,3 +200,5 @@ class Polynomial(RowVectorFloat):
         plt.ylabel("P(x)")
         plt.grid()
         plt.show()
+
+        return P
