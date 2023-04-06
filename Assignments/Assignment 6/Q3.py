@@ -8,10 +8,11 @@ class ODE:
     Represents a single ODE. Includes initial value, euler method function definition and is updatable.
     Abstract class.
 
-    forward_euler : Updation function using forward Euler method.
-    backward_euler : Updation function using backward Euler method.
+    forward_euler(h) : Updation function using forward Euler method.
+    backward_euler(h) : Updation function using backward Euler method.
     Both takes input the class and the value of h
     ie. forward_euler(self, h) updates the value of x and t in the current step of the ODE.
+    calling the class returns the current value of the variable represented by the ODE.
     """
 
     def __init__(self, initial_value):
@@ -31,6 +32,11 @@ class nODE:
     Abstract class.
     
     _ODEs = {variable name : ODE}
+
+    forward_update(h) : Update every child ODE using forward Euler method
+    backward_update(h) : Update every child ODE using backward Euler method
+    get_variable(variable_name) : Returns the current value of queried variable
+    plot()  : Plots any 2 variables of the ODE against each other in a given time duration
     """
 
     def __init__(self, **kwargs):

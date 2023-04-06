@@ -4,6 +4,9 @@ from Vector import Vector2
 from Q3 import ODE, nODE
 from matplotlib.animation import FuncAnimation
 
+G = 6.67e-11
+
+
 class GravityBodies(nODE):
     """
     A class to model a group of bodies interacting through gravity.
@@ -15,7 +18,7 @@ class GravityBodies(nODE):
     G = 6.67e-11
 
     class Body(ODE):
-        def __init__(self, r0 : Vector2, v0 : Vector2, m, radius, bodies):
+        def __init__(self, r0 : Vector2, v0 : Vector2, m, radius, G, bodies):
             """
             Initializes the Body class.
 
@@ -24,7 +27,7 @@ class GravityBodies(nODE):
             v0: initial velocity vector of the body
             m: mass of the body
             radius: radius of the body
-            bodies: the list of all bodies in the group except for self
+            bodies: the list of all bodies in the group
             """
 
             self.m = m
@@ -32,6 +35,10 @@ class GravityBodies(nODE):
             self.v = v0
             self.r = r0
             self._bodies = bodies
+            self.G = G
+
+            self.initial_v = v0
+            self.initial_r = r0
 
         def __call__(self, variable = 'r'):
             """
@@ -47,6 +54,10 @@ class GravityBodies(nODE):
                 return self.v
             return self.r
 
+        def reset(self):
+            self.v = self.initial_v.copy()
+            self.r = self.initial_r.copy()
+
         def forward_euler(self, h):
             def bodyForce(body:GravityBodies.Body) -> Vector2:
                 """
@@ -59,10 +70,15 @@ class GravityBodies(nODE):
                 The gravitational force Vector2 exerted on the body by the other body.
                 """
                 disp = (body.r - self.r)
-                # if abs(disp) < self.radius:
-                #     return Vector2(0, 0)
+                dist = abs(disp)
 
-                return G*body.m*disp/(abs(disp)**3)
+                outForce = self.G*body.m*disp/(dist**3)
+                
+                #Contact force
+                if dist < self.radius + body.radius:
+                    outForce -= 10000 * float(np.sqrt(dist)) * disp
+
+                return outForce
 
             a = sum([bodyForce(body) for body in self._bodies if self != body], start=Vector2(0,0))
 
@@ -77,7 +93,7 @@ class GravityBodies(nODE):
         self.bodies = []
 
     
-    def AddBody(self, r0 : Vector2, v0 : Vector2, m, radius):
+    def AddBody(self, r0 : Vector2, v0 : Vector2, m, radius = 0.1):
         """
         Adds a new Body to the group of bodies.
 
@@ -87,40 +103,48 @@ class GravityBodies(nODE):
         m: mass of the Body
         radius: radius of the Body
         """
-        body = GravityBodies.Body(r0, v0, m, radius, self.bodies)
+        body = GravityBodies.Body(r0, v0, m, radius, self.G, self.bodies)
         self.bodies.append(body)
         self._ODEs[len(self._ODEs)] = body
 
 
-def SimulateBodies(bodySystem : GravityBodies, dt):
+def SimulateBodies(bodySystem : GravityBodies, dt, axislim = None):
     n = len(bodySystem.bodies)
 
     fig, ax = plt.subplots()
 
     plt.title("Planets!!")
     plt.grid()
+
     ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
     ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
     circles = []
 
     for i in range(n):
-        circle = plt.Circle(bodySystem.bodies[i](), bodySystem.bodies[i].radius, fc='r', zorder=10)
+        circle = plt.Circle(bodySystem.bodies[i](), bodySystem.bodies[i].radius, color=np.random.choice(list('bgrcmk')))
         ax.add_patch(circle)
         circles.append(circle)
 
     # Set the axis limits
 
-    # Function to update the pendulum's position
+    # Function to update the position
     def update(frame):
-        bodySystem.forward_update(dt)
+
+        #Simulation is sped up by 100 times
+        for i in range(100):
+            bodySystem.forward_update(dt)
 
         # Calculate bounding
         com = sum([body()*body.m for body in bodySystem.bodies], Vector2(0,0))/sum([body.m for body in bodySystem.bodies])
         span = max(max([body()[0] for body in bodySystem.bodies]), max([body()[1] for body in bodySystem.bodies]))
 
-        ax.set_xlim(((com[0]-span)-1, (com[0]+span)+1))
-        ax.set_ylim(((com[1]-span)-1, (com[1]+span)+1))
+        if axislim == None:
+            ax.set_xlim(((com[0]-span)-1, (com[0]+span)+1))
+            ax.set_ylim(((com[1]-span)-1, (com[1]+span)+1))
+        else:
+            ax.set_xlim((-axislim[0], axislim[0]))
+            ax.set_ylim((-axislim[1], axislim[1]))
         ax.set_aspect('equal', adjustable='box')
 
         for i in range(n):
@@ -134,30 +158,18 @@ def SimulateBodies(bodySystem : GravityBodies, dt):
     plt.show()
 
 
-# def PlotBodies(bodySystem : GravityBodies, dt, t_max):
-#     t = 0
-
-#     T = []
-#     bodyPoses = {}
-#     for body in bodySystem.bodies:
-#         bodyPoses [body] = []
-
-#     while t<t_max:
-#         bodySystem.forward_update(dt)
-
-#         t += dt
-#         T.append(t)
-
 
 def plot_bodies(gb : GravityBodies, h, total_time):
     """
     Plots the paths of the 3 bodies over time.
 
     Args:
-    r0s: a list of Vector2 objects representing the initial positions of the 3 bodies
-    v0s: a list of Vector2 objects representing the initial velocities of the 3 bodies
+    gb: a system of bodies, having exactly 3 bodies.
     total_time: the total time for which to simulate the motion of the 3 bodies
     """
+
+    if len(gb._ODEs) != 3:
+        raise ValueError("Thus function only works for 3 body systems")
 
     # Set the timestep size and number of timesteps
     N = int(total_time/h)
@@ -186,21 +198,43 @@ def plot_bodies(gb : GravityBodies, h, total_time):
     plt.legend(loc='best')
     plt.show()
 
-    
-if __name__ == '__main__':
 
-    G = 6.67e-11
-
+def Q5function(positions, velocities):
+    """
+    Wrapper function, 
+    takes list of positions and velocities of 3 bodies and plots, and simulates them.
+    """
     dt = 0.001
     t = 100
 
     bodySystem = GravityBodies()
 
-    bodySystem.AddBody(Vector2(0,0), Vector2(0,0), 0.001/G, 0.1)
-    bodySystem.AddBody(Vector2(2,2), Vector2(0,0), 0.001/G, 0.1)
-    bodySystem.AddBody(Vector2(3,-4), Vector2(0,0), 0.001/G, 0.1)
+    bodySystem.AddBody(Vector2(*positions[0]), Vector2(*velocities[0]), 1/G, 0.1)
+    bodySystem.AddBody(Vector2(*positions[1]), Vector2(*velocities[1]), 1/G, 0.1)
+    bodySystem.AddBody(Vector2(*positions[2]), Vector2(*velocities[2]), 1/G, 0.1)
 
-    # SimulateBodies(bodySystem, dt)
+    plot_bodies(bodySystem, dt, t)
 
-    plot_bodies(bodySystem,  dt, t)
+    bodySystem.reset()
 
+    SimulateBodies(bodySystem, dt)
+    
+if __name__ == '__main__':
+
+
+    # Testcase
+    # A configuration I thought was fairly stable, but is not
+    alpha = np.pi * 120/90
+
+    positions = [(2,0), (-1, 2*np.sqrt(1.5)), (-1, -2*np.sqrt(1.5))]
+    velocities = [tuple(0.2*Vector2(np.cos(alpha)*x - np.sin(alpha)*y, np.cos(alpha)*y + np.sin(alpha)*x)) for x,y in positions]
+    Q5function(positions, velocities)
+
+
+    ## uncomment for a cool solar system 
+    # bodySystem = GravityBodies()
+    # bodySystem.AddBody(Vector2(0,0), Vector2(0,0), 10000/G, 20)
+    # bodySystem.AddBody(Vector2(0,140), Vector2(10,0), 150/G, 5)
+    # bodySystem.AddBody(Vector2(0,130), Vector2(14,0), 0.01/G, 2)
+    # bodySystem.AddBody(Vector2(0,400), Vector2(3,0), 1/G, 5)
+    # SimulateBodies(bodySystem, 0.001, axislim=(400,400))

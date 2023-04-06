@@ -103,6 +103,9 @@ class Vector2(RowVectorFloat):
     def y(self):
         return self[1]
 
+    def copy(self):
+        return Vector2(self.x(), self.y())
+
 if __name__ == '__main__':
 
     # Test cases

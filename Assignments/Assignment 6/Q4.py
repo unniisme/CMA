@@ -1,10 +1,18 @@
 import numpy as np
+from scipy import integrate
 import matplotlib.pyplot as plt
 from Q3 import ODE, nODE
 
 class VanDerPolEqn(nODE):
     
     class velocity(ODE):
+        """
+        dv/dt - μ(1-x²)*v + x = 0
+        Where v and x are functions of t
+
+        Forward updation:
+        v(t+1) = v(t) + (μ(1-x(t)²)*v(t) - x(t))*h
+        """
         
         def __init__(self, initial_value, mu, x : ODE):
             self.mu = mu
@@ -16,6 +24,13 @@ class VanDerPolEqn(nODE):
             self.value += (self.mu*(1-(self.x())**2)*self.value - self.x())*h
 
     class position(ODE):
+        """
+        dx/dt = v
+        Where v and x are functions of t
+
+        Forward (and infact backward!) updation:
+        x(t+1) = x(t) + v(t)*h
+        """
         
         def __init__(self, initial_value, v:ODE):
             self.v = v
@@ -35,42 +50,56 @@ class VanDerPolEqn(nODE):
         super().__init__(x = x, v = v)
 
 
+def FindFrequency(mu, x0, v0):
+    dt = 0.0001
+    t = 0
+
+    oscillator = VanDerPolEqn(x0, v0, mu)
+
+    # Limit cycle is the time between 2 global maximas
+    # Average over 5 limit cycles is taken
+    upSlope = True
+    limitCycles=[]
+    X = []
+    T = []
+    lastExtrema = 0
+
+    oldx = oscillator.get_variable('x')
+
+    while len(limitCycles) < 7:
+        oscillator.forward_update(dt)
+        X.append(oscillator.get_variable('x'))
+        T.append(t)
+        if oldx > oscillator.get_variable('x') and upSlope:
+            limitCycles.append(t-lastExtrema)
+            lastExtrema = t
+
+        upSlope = oldx < oscillator.get_variable('x')
+
+        t += dt
+
+    limitCycles.pop(0) #Remove first measure as it is simply the time from start to first maxima
+        
+    print(f"mu = {mu}\t Limit cycle = {sum(limitCycles)/len(limitCycles)}")
+
+    plt.title("Van der Pol Oscillator with μ = " + str(mu))
+    plt.xlabel("time")
+    plt.ylabel("x")
+    plt.plot(T,X)
+    endpoints = (lastExtrema, lastExtrema-limitCycles[-1])
+    plt.plot(endpoints, np.interp(endpoints, T, X))
+
+    plt.show()
+
+    return sum(limitCycles)/len(limitCycles)
+
+
+
 
 if __name__ == '__main__':
-    x0 = 1
-    v0 = 0
-    mu = 0.7
     
-
-    duration = 50
-    dt = 0.01
-
-    plt.title("x vs t")
-    oscillator = VanDerPolEqn(x0, v0, 1)
-    oscillator.Plot(duration, dt, plot_params=[('t', 'x', '1')])
-    oscillator = VanDerPolEqn(x0, v0, 10)
-    oscillator.Plot(duration, dt, plot_params=[('t', 'x', '10')])
-    oscillator = VanDerPolEqn(x0, v0, 20)
-    oscillator.Plot(duration, dt, plot_params=[('t', 'x', '20')])
-    plt.legend()
-    plt.show()
-
-    plt.title("v vs t")
-    oscillator = VanDerPolEqn(x0, v0, 1)
-    oscillator.Plot(duration, dt, plot_params=[('t', 'v', '1')])
-    oscillator = VanDerPolEqn(x0, v0, 10)
-    oscillator.Plot(duration, dt, plot_params=[('t', 'v', '10')])
-    oscillator = VanDerPolEqn(x0, v0, 20)
-    oscillator.Plot(duration, dt, plot_params=[('t', 'v', '20')])
-    plt.legend()
-    plt.show()
-
-    plt.title("x vs v")
-    oscillator = VanDerPolEqn(x0, v0, 1)
-    oscillator.Plot(duration, dt, plot_params=[('x', 'v', '1')])
-    oscillator = VanDerPolEqn(x0, v0, 10)
-    oscillator.Plot(duration, dt, plot_params=[('x', 'v', '10')])
-    oscillator = VanDerPolEqn(x0, v0, 20)
-    oscillator.Plot(duration, dt, plot_params=[('x', 'v', '20')])
-    plt.legend()
-    plt.show()
+    FindFrequency(0.01,1,0.1)
+    FindFrequency(0.1,1,-0.3)
+    FindFrequency(1,0.1,0.2)
+    FindFrequency(4,-0.4,1)
+    FindFrequency(10,-0.4,1)

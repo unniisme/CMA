@@ -14,6 +14,7 @@ def Q2function(y0, x0, x1, h):
     Y = [y0]
 
     while x<x1:
+        # Backward Euler update of y
         y = y/(1+2*h)
         x = x + h
         Y.append(y)

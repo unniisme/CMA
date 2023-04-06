@@ -17,6 +17,7 @@ def forwardEulerPolynomial(f, y0, x0, x1, h):
     Y = [y0]
 
     while x<x1:
+        # Forward Euler update of y
         y = y + h*f(x,y)
         x = x + h
         Y.append(y)
