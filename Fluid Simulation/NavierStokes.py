@@ -12,6 +12,9 @@ class NS_sim:
 
     dt = 0.01
     diff_coeff = 0.1
+    visc_coeff = 1
+
+    iterations = 20
 
     def __init__(self, dimensions : tuple):
         self.dimensions = dimensions
@@ -22,13 +25,13 @@ class NS_sim:
 
         self._params = {"D" : [self.D, self.D_prev], "V" : [self.V, self.V_prev]}
 
-    def diffuse(self, param, dt,  iterations = 20):
+    def diffuse(self, param, const, dt):
 
-        k = NS_sim.diff_coeff*dt
+        k = const*dt*self.dimensions[0]*self.dimensions[1]
 
         old_param = self._params[param][0].copy()
 
-        for interation in range(iterations):
+        for interation in range(self.iterations):
             for i in range(self.dimensions[0]):
                 for j in range(self.dimensions[1]):
                     try:
@@ -39,9 +42,9 @@ class NS_sim:
 
         self._params[param][1] = old_param
 
-    def advect(self, dt, iterations = 20):
+    def advect(self, param, dt, iterations = 20):
 
-        old_D = self.D.copy()
+        old_param = self._params[param][0].copy()
 
         for i in range(self.dimensions[0]):
             for j in range(self.dimensions[1]):
@@ -51,9 +54,9 @@ class NS_sim:
                 fract, floor = np.modf(f)
                 floor = np.asarray(floor, int)
 
-                z1 = lerp(self.D[floor[0], floor[1]], self.D[floor[0]+1, floor[1]], fract[0])
-                z2 = lerp(self.D[floor[0], floor[1]+1], self.D[floor[0]+1, floor[1]+1], fract[0])
-                self.D[i,j] = lerp(z1, z2, fract[1])
+                z1 = lerp(self._params[param][0][floor[0], floor[1]], self._params[param][0][floor[0]+1, floor[1]], fract[0])
+                z2 = lerp(self._params[param][0][floor[0], floor[1]+1], self._params[param][0][floor[0]+1, floor[1]+1], fract[0])
+                self._params[param][0][i,j] = lerp(z1, z2, fract[1])
                 
                 # x = i - dt*self.V[i,j][0]
                 # y = j - dt*self.V[i,j][1]
@@ -71,15 +74,53 @@ class NS_sim:
                 # t1 = y-j1
                 # t0 = 1-t1
 
-                # self.D[i,j] = s0*(t0*self.D_prev[i0,j0] + t1*self.D_prev[i0,j1]) + s1*(t0*self.D_prev[i1,j0] + t1*self.D_prev[i1,j1])
+                # self._params[param][0][i,j] = s0*(t0*self._params[param][1][i0,j0] + t1*self._params[param][1][i0,j1]) + s1*(t0*self._params[param][1][i1,j0] + t1*self._params[param][1][i1,j1])
 
-        self.D_prev = old_D
+        self._params[param][1] = old_param
+
+
+    def curl(self):
+
+        div = np.zeros(self.dimensions)
+        p = np.zeros(self.dimensions)
+        for i in range(1,self.dimensions[0]-1):
+            for j in range(1, self.dimensions[1]-1):
+                div[i,j] = (self.V[i+1, j][0] - self.V[i-1, j][0] + self.V[i, j+1][1] - self.V[i, j-1][1])*0.5
+
+        
+        for iteration in range(NS.iterations):
+            for i in range(1,self.dimensions[0]-1):
+                for j in range(1, self.dimensions[1]-1):    
+                    p[i,j] = (p[i-1, j] + p[i+1,j] + p[i, j-1] + p[i, j+1]  -  div[i,j])/4
+
+        k = 0.5*self.dimensions[0] #Keeping it like this for now, in reference to paper
+        for i in range(1,self.dimensions[0]-1):
+            for j in range(1, self.dimensions[1]-1):
+                self.V[i,j][0] -= k*p[i+1,j] - p[i-1, j]
+                self.V[i,j][1] -= k*p[i,j+1] - p[i, j+1]
+
+
+    def update(self, dt):
+
+        # Upadate velocity
+        self.diffuse("V", self.visc_coeff, dt)
+        self.curl()
+        self.advect("V", dt)
+        self.curl()
+
+
+        # Update density
+        # self.D_prev, self.D = self.D, self.D_prev
+        self.diffuse("D", self.diff_coeff, dt)
+        # self.D_prev, self.D = self.D, self.D_prev
+        self.advect("D", dt)
 
 
 class NS:
 
     dt = 0.01
-    diff_coeff = 0.1
+    diff_coeff = 10
+    visc_coeff = 1
 
     iterations = 20 #Number of iterations for guass-siedel method
 
@@ -90,24 +131,21 @@ class NS:
         self.D_prev = np.zeros(dimensions)
         self.V_prev = np.zeros((dimensions[0], dimensions[1], 2))
 
-    def diffuse(self, x, x0, dt):
+    def diffuse(self, x, x0, const, dt):
+        k = const*dt*self.dimensions[0]*self.dimensions[1]
 
-        k = NS_sim.diff_coeff*dt
+        old_param = x.copy() #Handle outside
 
-        # old_param = x.copy() #Handle outside
+        for interation in range(NS.iterations):
+            for i in range(1,self.dimensions[0]-1):
+                for j in range(1,self.dimensions[1]-1):
+                    s = (x[i+1,j] + x[i-1,j] + x[i,j+1] + x[i,j-1])
+                    x[i,j] = (4*x0[i,j] + k * s)/(4+4*k)
 
-        for interation in range(NS_sim.iterations):
-            for i in range(self.dimensions[0]):
-                for j in range(self.dimensions[1]):
-                    try:
-                        s = (x[i+1,j] + x[i-1,j] + x[i,j+1] + x[i,j-1])
-                        x[i,j] = (4*x0[i,j] + k * s)/(4+4*k)
-                    except:
-                        pass
-
-        # x0 = old_param  #Handle outside
+        x0 = old_param  #Handle outside
 
     def advect(self, x, x0, v, dt):
+        dt = dt*(np.sqrt(self.dimensions[0]*self.dimensions[1]))
 
         # old_x = x.copy() #Handle outside
 
@@ -152,15 +190,31 @@ class NS:
                 div[i,j] = (v[i+1, j][0] - v[i-1, j][0] + v[i, j+1][1] - v[i, j-1][1])*0.5
 
         
-        for iteration in range(NS_sim.iterations):
+        for iteration in range(NS.iterations):
             for i in range(1,self.dimensions[0]-1):
                 for j in range(1, self.dimensions[1]-1):    
                     p[i,j] = (p[i-1, j] + p[i+1,j] + p[i, j-1] + p[i, j+1]  -  div[i,j])/4
 
-        # k = 0.5*self.dimensions[0] #Keeping it like this for now, in reference to paper
-        k = 0.5
+        k = 0.5*self.dimensions[0] #Keeping it like this for now, in reference to paper
         for i in range(1,self.dimensions[0]-1):
             for j in range(1, self.dimensions[1]-1):
                 v[i,j][0] -= k*p[i+1,j] - p[i-1, j]
                 v[i,j][1] -= k*p[i,j+1] - p[i, j+1]
 
+
+    def update(self, dt):
+
+        # Upadate velocity
+        self.V_prev, self.V = self.V, self.V_prev
+        self.diffuse(self.V, self.V_prev, self.visc_coeff, dt)
+        self.curl(self.V)
+        self.V_prev, self.V = self.V, self.V_prev
+        self.advect(self.V, self.V_prev, self.V, dt)
+        self.curl(self.V)
+
+
+        # Update density
+        # self.D_prev, self.D = self.D, self.D_prev
+        self.diffuse(self.D, self.D_prev, self.diff_coeff, dt)
+        # self.D_prev, self.D = self.D, self.D_prev
+        self.advect(self.D, self.D_prev, self.V, dt)
