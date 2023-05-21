@@ -44,28 +44,31 @@ class FluidSolver:
         self.lin_solve(b, x, x0, a, 1+4*a)
 
     def advect(self, b, d, d0, u, v):
-        dt0 = self.dt*self.N
-        for i in range(1, self.N+1):
-            for j in range(1, self.N+1):
-                x = i-dt0*u[(i,j)]
-                y = j-dt0*v[(i,j)]
-                if x < 0.5:
-                    x = 0.5
-                if x > self.N+0.5:
-                    x = self.N+0.5
-                i0 = int(x)
-                i1 = i0+1
-                if y < 0.5:
-                    y = 0.5
-                if y > self.N+0.5:
-                    y = self.N+0.5
-                j0 = int(y)
-                j1 = j0+1
-                s1 = x-i0
-                s0 = 1-s1
-                t1 = y-j0
-                t0 = 1-t1
-                d[(i,j)] = s0*(t0*d0[(i0,j0)]+t1*d0[(i0,j1)])+s1*(t0*d0[(i1,j0)]+t1*d0[(i1,j1)])
+        dt0 = self.dt * self.N
+
+        # Generate 2D arrays of x and y coordinates
+        y, x = np.meshgrid(np.arange(1, self.N+1), np.arange(1, self.N+1))
+        x = x.astype(float)
+        y = y.astype(float)
+
+        # Calculate the x and y coordinates after advection
+        x -= dt0 * u[1:self.N+1, 1:self.N+1]  # u and v have an offset of 1
+        y -= dt0 * v[1:self.N+1, 1:self.N+1]
+
+        # Clip x and y to reflect B.C. of the domain
+        x = np.clip(x, 0.5, self.N + 0.5)
+        y = np.clip(y, 0.5, self.N + 0.5)
+
+        # Get the indices and weights for bilinear interpolation
+        i0, j0 = np.floor(x).astype(int), np.floor(y).astype(int)
+        i1, j1 = i0 + 1, j0 + 1
+        s1, t1 = x - i0, y - j0
+        s0, t0 = 1. - s1, 1. - t1
+
+        # Apply bilinear interpolation to advect the density field
+        d[1:self.N+1, 1:self.N+1] = s0*(t0*d0[i0, j0] + t1*d0[i0, j1]) + \
+                                    s1*(t0*d0[i1, j0] + t1*d0[i1, j1])
+
         self.set_bnd(b, d)
 
 
@@ -75,19 +78,17 @@ class FluidSolver:
 
         self.lin_solve(0, self.pressure, self.div, 1, 4)
 
-        for i in range(1, self.N+1):
-            for j in range(1, self.N+1):
-                self.u[(i,j)] -= 0.5*self.N*(self.pressure[(i+1,j)]-self.pressure[(i-1,j)])
-                self.v[(i,j)] -= 0.5*self.N*(self.pressure[(i,j+1)]-self.pressure[(i,j-1)])
+        self.u[1:-1, 1:-1] -= 0.5*self.N*(self.pressure[2:, 1:-1] - self.pressure[:-2, 1:-1])
+        self.v[1:-1, 1:-1] -= 0.5*self.N*(self.pressure[1:-1, 2:] -  self.pressure[1:-1, :-2])
 
         self.set_bnd(1, self.u)
         self.set_bnd(2, self.v)
 
     def divergence(self):
         self.div = np.zeros(self.dimensions)
-        for i in range(1, self.N+1):
-            for j in range(1, self.N+1):
-                self.div[(i,j)] = -0.5*(self.u[(i+1,j)]-self.u[(i-1,j)]+self.v[(i,j+1)]-self.v[(i,j-1)])/self.N
+        self.div[1:-1, 1:-1] = -0.5 * (self.u[2:, 1:-1] - self.u[:-2, 1:-1] +
+                               self.v[1:-1, 2:] - self.v[1:-1, :-2]) / self.N
+
 
         self.set_bnd(0, self.div)
 
@@ -139,23 +140,3 @@ class SmokeSimulation:
 
     def get_density(self):
         return self.solver.density
-
-# To use this code, you can create a `SmokeSimulation` object with the desired parameters (grid size, diffusion, viscosity, time step). Then, you can call the `add_density` and `add_velocity` methods to add sources of smoke and wind to the simulation. Finally, you can call the `update` method to advance the simulation by one time step. Here's an example:
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-
-    # create smoke simulation with 64x64 grid, diffusion=0.01, viscosity=0.1, dt=0.1
-    sim = SmokeSimulation(64, 0.01, 0.1, 0.1)
-
-    # add some smoke and wind sources
-    sim.add_density(0.5, 0.5, 100)
-    sim.add_velocity(0.5, 0.5, 2, 0)
-
-    # run simulation for 100 time steps
-    for i in range(100):
-        print (i)
-        sim.update()
-
-    # display density field as grayscale image
-    plt.imshow(np.array(sim.solver.density).reshape(sim.solver.N+2, sim.solver.N+2), cmap='gray')
-    plt.show()

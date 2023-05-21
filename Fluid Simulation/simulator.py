@@ -12,10 +12,10 @@ class Simulator:
         self.clock = pygame.time.Clock()
         self.running = True
 
-        self.force = 5
-        self.source = 1000
-        diff = 0.0
-        visc = 0.0
+        self.force = force
+        self.source = source
+        diff = diff
+        visc = visc
 
         self.gridSize = resolution
         self.dimensions = (N, N)
@@ -59,14 +59,14 @@ class Simulator:
             mouse_delta = pygame.mouse.get_rel()
 
             if pygame.mouse.get_pressed()[0]:
-                # self.fluid.add_density(*self.Vector2ToGridCell(mouse_pos), self.source)
-                self.fluid.solver.density_prev[self.Vector2ToGridCell(mouse_pos)] = self.source
+                self.fluid.add_density(*self.Vector2ToGridCell(mouse_pos), self.source)
+                # self.fluid.add_density(self.Vector2ToGridCell(mouse_pos), self.source)
 
             if pygame.mouse.get_pressed()[2]:
-                self.fluid.solver.u_prev[self.Vector2ToGridCell(mouse_pos)] = self.force * mouse_delta[0]
-                self.fluid.solver.v_prev[self.Vector2ToGridCell(mouse_pos)] = self.force *mouse_delta[1]
-                # mouse_force = (mouse_delta[0]*self.force, mouse_delta[1]*self.force)
-                # self.fluid.add_velocity(*self.Vector2ToGridCell(mouse_pos), *mouse_force)
+                # self.fluid.solver.u_prev[self.Vector2ToGridCell(mouse_pos)] = self.force * mouse_delta[0]
+                # self.fluid.solver.v_prev[self.Vector2ToGridCell(mouse_pos)] = self.force *mouse_delta[1]
+                mouse_force = (mouse_delta[0]*self.force, mouse_delta[1]*self.force)
+                self.fluid.add_velocity(*self.Vector2ToGridCell(mouse_pos), *mouse_force)
 
             self.fluid.update()
 
