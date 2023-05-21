@@ -19,8 +19,8 @@ class FluidSolver:
         self.density = np.zeros(self.dimensions)
         self.density_prev = np.zeros(self.dimensions)
 
-    def add_source(self, s):
-        self.density += self.dt*s
+    def add_source(self, x, s):
+        x += self.dt*s
 
     def set_bnd(self, b, x):
         x[0,:] = np.where(b==1, -x[1,:], x[1,:])
@@ -39,12 +39,11 @@ class FluidSolver:
             x[1:-1, 1:-1] = (x0[1:-1, 1:-1] + a*(x[:-2, 1:-1] + x[2:, 1:-1] + x[1:-1, :-2] + x[1:-1, 2:])) / c
             self.set_bnd(b, x)
 
-
-    def diffuse(self, x, x0, diff):
+    def diffuse(self, b, x, x0, diff):
         a = self.dt*diff*self.N*self.N
-        self.lin_solve(0, x, x0, a, 1+4*a)
+        self.lin_solve(b, x, x0, a, 1+4*a)
 
-    def advect(self, d, d0, u, v):
+    def advect(self, b, d, d0, u, v):
         dt0 = self.dt*self.N
         for i in range(1, self.N+1):
             for j in range(1, self.N+1):
@@ -67,16 +66,10 @@ class FluidSolver:
                 t1 = y-j0
                 t0 = 1-t1
                 d[(i,j)] = s0*(t0*d0[(i0,j0)]+t1*d0[(i0,j1)])+s1*(t0*d0[(i1,j0)]+t1*d0[(i1,j1)])
-        self.set_bnd(0, d)
+        self.set_bnd(b, d)
 
 
     def project(self):
-        for i in range(1, self.N+1):
-            for j in range(1, self.N+1):
-                self.u_prev[(i,j)] = self.u[(i,j)]
-                self.v_prev[(i,j)] = self.v[(i,j)]
-                self.density_prev[(i,j)] = self.density[(i,j)]
-
         self.divergence()
         self.pressure = np.zeros(self.dimensions)
 
@@ -99,40 +92,46 @@ class FluidSolver:
         self.set_bnd(0, self.div)
 
     def vel_step(self):
-        self.add_source(self.u_prev)
-        self.add_source(self.v_prev)
+        self.add_source(self.u, self.u_prev)
+        self.add_source(self.v, self.v_prev)
 
-        self.diffuse(self.u, self.u_prev, self.visc)
-        self.diffuse(self.v, self.v_prev, self.visc)
+        self.u_prev, self.u = self.u, self.u_prev
+        self.v_prev, self.v = self.v, self.v_prev
+
+        self.diffuse(1, self.u, self.u_prev, self.visc)
+        self.diffuse(2, self.v, self.v_prev, self.visc)
 
         self.project()
 
-        for i in range(1, self.N+1):
-            for j in range(1, self.N+1):
-                self.u_prev[(i,j)] = self.u[(i,j)]
-                self.v_prev[(i,j)] = self.v[(i,j)]
+        self.u_prev, self.u = self.u, self.u_prev
+        self.v_prev, self.v = self.v, self.v_prev
 
-        self.advect(self.u, self.u_prev, self.u_prev, self.v_prev)
-        self.advect(self.v, self.v_prev, self.u_prev, self.v_prev)
+        self.advect(1, self.u, self.u_prev, self.u_prev, self.v_prev)
+        self.advect(2, self.v, self.v_prev, self.u_prev, self.v_prev)
 
         self.project()
 
     def dens_step(self):
-        self.add_source(self.density_prev)
+        self.add_source(self.density, self.density_prev)
 
-        self.diffuse(self.density, self.density_prev, self.diff)
-        self.advect(self.density_prev, self.density, self.u, self.v)
+        self.density_prev, self.density = self.density, self.density_prev
+
+        self.diffuse(0, self.density, self.density_prev, self.diff)
+
+        self.density_prev, self.density = self.density, self.density_prev
+
+        self.advect(0,self.density, self.density_prev, self.u, self.v)
 
 class SmokeSimulation:
     def __init__(self, N, diff, visc, dt):
         self.solver = FluidSolver(N, diff, visc, dt)
 
     def add_density(self, x, y, amount):
-        self.solver.density[(int(x), int(y))] += amount
+        self.solver.density_prev[(int(x), int(y))] += amount
 
     def add_velocity(self, x, y, amountX, amountY):
-        self.solver.u[(int(x), int(y))] += amountX
-        self.solver.v[(int(x), int(y))] += amountY
+        self.solver.u_prev[(int(x), int(y))] += amountX
+        self.solver.v_prev[(int(x), int(y))] += amountY
 
     def update(self):
         self.solver.vel_step()
