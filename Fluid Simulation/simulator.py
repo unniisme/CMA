@@ -1,11 +1,11 @@
 import pygame
-from NavierStokes import SmokeSimulation
+from NavierStokes import Simulation, WaterSimulation
 import numpy as np
 import sys
 
 class Simulator:
 
-    def __init__ (self, N = 20, resolution = 30, force = 5, source = 1000, diff = 0.0, visc = 0.0):
+    def __init__ (self, N = 20, resolution = 30, force = 5, source = 1000, diff = 0.0, visc = 0.0, isWaterSim=False):
         self.fps = 60
         screenSize = [N*resolution]*2
         self.screen = pygame.display.set_mode(screenSize)
@@ -20,19 +20,25 @@ class Simulator:
         self.gridSize = resolution
         self.dimensions = (N, N)
 
-        self.fluid = SmokeSimulation(N-2, diff, visc, 0.1)
+        if isWaterSim:
+            self.fluid = WaterSimulation(N-2, diff, visc, 0.1)
+        else:
+            self.fluid = Simulation(N-2, diff, visc, 0.1)
 
     def DrawSquare(self, gridStart : tuple, length : int, offset : int, colour : tuple = (0,0,255)):
         rect = pygame.Rect(gridStart[0] + offset, gridStart[1] + offset, length - 2*offset, length - 2*offset)
         pygame.draw.rect(self.screen, colour, rect)
 
+    def density_color(self, i,j):
+        col = round(self.fluid.get_density()[i,j]*255/10)
+        col = max(0, min(255,col))
+        return (col, col, col)
+
     def DrawGrid(self, in_offset : int = 0):
 
         for i in range(self.dimensions[0]):
             for j in range(self.dimensions[1]):
-                col = round(self.fluid.get_density()[i,j]*255/10)
-                col = max(0, min(255,col))
-                self.DrawSquare((i*self.gridSize,j*self.gridSize), self.gridSize, in_offset, (col,col,col))
+                self.DrawSquare((i*self.gridSize,j*self.gridSize), self.gridSize, in_offset, self.density_color(i,j))
     
     def Vector2ToGridCell(self, vector2):
         """
@@ -77,26 +83,4 @@ class Simulator:
             pygame.display.flip()
             self.clock.tick(self.fps)
 
-
-if __name__ == '__main__':
-
-    if len(sys.argv) == 1:
-        sim = Simulator(N=64, resolution=20, force = 70, source=1000, diff = 0.0, visc = 0.0)
-
-    else:
-        N = int(sys.argv[1])
-        resolution = int(sys.argv[2])
-        force = int(sys.argv[3])
-        source = int(sys.argv[4])
-        diff = float(sys.argv[5])
-        visc = float(sys.argv[6])
-
-        sim = Simulator(N, resolution, force, source, diff, visc)
-
-
-    # sim.fluid.D[5,5] = 1000
-    # sim.fluid.D_prev[5,5] = 1000
-
-
-    sim.Start()
     

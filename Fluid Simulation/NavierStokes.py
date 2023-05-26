@@ -3,6 +3,15 @@ import numpy as np
 
 class FluidSolver:
     def __init__(self, N, diff, visc, dt):
+        """
+        Initialize FluidSolver class with given parameters
+        
+        Parameters:
+        N (int): size of grid
+        diff (float): diffusion rate
+        visc (float): viscosity rate
+        dt (float): time-step size
+        """
         self.N = N
         self.dt = dt
         self.diff = diff
@@ -22,7 +31,18 @@ class FluidSolver:
     def add_source(self, x, s):
         x += self.dt*s
 
+    # May be redefined outside
     def set_bnd(self, b, x):
+        """
+        Set boundary condition for grid
+        
+        Parameters:
+        b (int): boundary type
+        x (ndarray): grid to set boundary condition for
+        
+        Returns:
+        None
+        """
         x[0,:] = np.where(b==1, -x[1,:], x[1,:])
         x[self.N+1,:] = np.where(b==1, -x[self.N,:], x[self.N,:])
         x[:,0] = np.where(b==2, -x[:,1], x[:,1])
@@ -40,10 +60,29 @@ class FluidSolver:
             self.set_bnd(b, x)
 
     def diffuse(self, b, x, x0, diff):
+        """
+        Diffuse density in the system according to the given diffusion rate
+        
+        Parameters:
+        b (int): boundary condition type
+        x (ndarray): current grid state
+        x0 (ndarray): previous grid state
+        diff (float): diffusion rate of the density
+        """
         a = self.dt*diff*self.N*self.N
         self.lin_solve(b, x, x0, a, 1+4*a)
 
     def advect(self, b, d, d0, u, v):
+        """
+        Advects the density field according to the velocity of the fluid
+        
+        Parameters:
+        b (int): boundary condition type
+        d (ndarray): current density
+        d0 (ndarray): previous density
+        u (ndarray): x-velocity field
+        v (ndarray): y-velocity field
+        """
         dt0 = self.dt * self.N
 
         # Generate 2D arrays of x and y coordinates
@@ -73,6 +112,9 @@ class FluidSolver:
 
 
     def project(self):
+        """
+        Make velocity field divergence free using helmholtz decomposition
+        """
         self.divergence()
         self.pressure = np.zeros(self.dimensions)
 
@@ -85,6 +127,9 @@ class FluidSolver:
         self.set_bnd(2, self.v)
 
     def divergence(self):
+        """
+        Calculates the divergence of the velocity field
+        """
         self.div = np.zeros(self.dimensions)
         self.div[1:-1, 1:-1] = -0.5 * (self.u[2:, 1:-1] - self.u[:-2, 1:-1] +
                                self.v[1:-1, 2:] - self.v[1:-1, :-2]) / self.N
@@ -123,7 +168,7 @@ class FluidSolver:
 
         self.advect(0,self.density, self.density_prev, self.u, self.v)
 
-class SmokeSimulation:
+class Simulation:
     def __init__(self, N, diff, visc, dt):
         self.solver = FluidSolver(N, diff, visc, dt)
 
@@ -134,9 +179,43 @@ class SmokeSimulation:
         self.solver.u_prev[(int(x), int(y))] += amountX
         self.solver.v_prev[(int(x), int(y))] += amountY
 
+    def ext_update(self):
+        #called every frame. Modify externally to add properties
+        pass
+
     def update(self):
+        self.ext_update()
         self.solver.vel_step()
         self.solver.dens_step()
 
     def get_density(self):
         return self.solver.density
+
+    def get_velocity(self, i, j):
+        return (self.solver.u[i,j], self.solver.v[i,j])
+
+
+class WaterSimulation(Simulation):
+
+    def set_bnd(self, b, x):
+        x[0,:] = np.where(b==1, -x[1,:], x[1,:])
+        x[self.N+1,:] = np.where(b==1, -x[self.N,:], x[self.N,:])
+        x[:,0] *= 0 #Empty top
+        x[:,self.N+1] = np.where(b==2, -x[:,self.N], x[:,self.N])
+
+        x[0,0] = 0.5*(x[1,0]+x[0,1])
+        x[0,self.N+1] = 0.5*(x[1,self.N+1]+x[0,self.N])
+        x[self.N+1,0] = 0.5*(x[self.N,0]+x[self.N+1,1])
+        x[self.N+1,self.N+1] = 0.5*(x[self.N,self.N+1]+x[self.N+1,self.N])
+
+    g = 2
+
+    def __init__(self, N, diff, visc, dt):
+        self.solver = FluidSolver(N, diff, visc, dt)
+        self.solver.set_bnd = lambda b,x: WaterSimulation.set_bnd(self.solver, b, x)
+
+    def apply_gravity(self):
+        self.solver.v_prev += WaterSimulation.g*self.solver.dt
+
+    def ext_update(self):
+        self.apply_gravity()
