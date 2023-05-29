@@ -1,3 +1,5 @@
+# https://www.dgp.toronto.edu/public_user/stam/reality/Research/pdf/GDC03.pdf
+
 import numpy as np
 
 
@@ -37,7 +39,7 @@ class FluidSolver:
         Set boundary condition for grid
         
         Parameters:
-        b (int): boundary type
+        b (int): boundary type {0 : d, 1 : u, 2 : v}
         x (ndarray): grid to set boundary condition for
         
         Returns:
