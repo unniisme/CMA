@@ -1,5 +1,22 @@
 from simulator import Simulator
 import sys
+import numpy as np
+
+restitution = 2
+
+def set_bnd(self, b, x):
+    x[0,:] = np.where(b==1, -x[1,:], x[1,:])
+    x[self.N+1,:] = np.where(b==1, -x[self.N,:], x[self.N,:])
+    x[:,0] = 0
+    x[:,self.N+1] = np.where(b==2, -x[:,self.N], x[:,self.N])
+
+    # Make the bottom sticky to prevent leakage
+    x[:,self.N+1] = np.where(b == 0, 0, -x[:,self.N])
+
+    x[0,0] = 0.5*(x[1,0]+x[0,1])
+    x[0,self.N+1] = 0.5*(x[1,self.N+1]+x[0,self.N])
+    x[self.N+1,0] = 0.5*(x[self.N,0]+x[self.N+1,1])
+    x[self.N+1,self.N+1] = 0.5*(x[self.N,self.N+1]+x[self.N+1,self.N])
 
 def ext(fluid):
     fluid.apply_gravity()
@@ -16,28 +33,12 @@ def density_color(sim, i, j):
 
 if __name__ == '__main__':
 
-    if len(sys.argv) == 7:
-        N = int(sys.argv[1])
-        resolution = int(sys.argv[2])
-        force = int(sys.argv[3])
-        source = int(sys.argv[4])
-        diff = float(sys.argv[5])
-        visc = float(sys.argv[6])
-
-        sim = Simulator(N, resolution, force, source, diff, visc, True)
-
-
-    else:
-        print("Invalid input format. Please enter 6 arguments: N (int), resolution (int), force (int), source (int), diff (float), and visc (float) separated by spaces.")
-        print("Running using standard values")
-        print("64 20 70 1000 0.0 0.0")
-
-        sim = Simulator(N=64, resolution=20, force = 70, source=1000, diff = 0.0, visc = 0.0, isWaterSim=True)
-
+    print("N = 64, resolution = 20, force = 70, source = 1000, diff = 0.0, visc = 0.0")
+    sim = Simulator(N=64, resolution=10, force = 70, source=1000, diff = 0.0, visc = 0.0, isWaterSim=True)
 
     sim.fluid.ext_update = lambda : ext(sim.fluid)
     sim.density_color = lambda i,j: density_color(sim, i, j)
-
+    sim.fluid.solver.set_bnd = lambda b,x: set_bnd(sim.fluid.solver, b, x)
     sim.Start()
 
     
