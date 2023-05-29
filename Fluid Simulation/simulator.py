@@ -7,8 +7,8 @@ class Simulator:
 
     def __init__ (self, N = 20, resolution = 30, force = 5, source = 1000, diff = 0.0, visc = 0.0, isWaterSim=False):
         self.fps = 60
-        screenSize = [N*resolution]*2
-        self.screen = pygame.display.set_mode(screenSize)
+        self.screenSize = [N*resolution]*2
+        self.screen = pygame.display.set_mode(self.screenSize)
         self.clock = pygame.time.Clock()
         self.running = True
 
@@ -51,6 +51,13 @@ class Simulator:
 
     def Start(self):
 
+        pygame.init()
+
+        coordinates = "(0,0)"
+        text = pygame.font.Font('freesansbold.ttf', 10).render(coordinates, True, (255,255,255))
+        textRect = text.get_rect()
+        textRect.topleft = (0,0)
+
         while True:
 
             self.fluid.solver.density_prev = np.zeros(self.fluid.solver.dimensions)
@@ -63,6 +70,8 @@ class Simulator:
 
             mouse_pos = pygame.mouse.get_pos()
             mouse_delta = pygame.mouse.get_rel()
+
+            coordinates = str(self.Vector2ToGridCell(mouse_pos))
 
             if pygame.mouse.get_pressed()[0]:
                 self.fluid.add_density(*self.Vector2ToGridCell(mouse_pos), self.source)
@@ -77,8 +86,12 @@ class Simulator:
             self.fluid.update()
 
             self.screen.fill((255,255,255))
-
             self.DrawGrid()
+
+            text = pygame.font.Font('freesansbold.ttf', 10).render(coordinates, True, (255,255,255))
+            textRect = text.get_rect()
+            textRect.topleft = (0,0)
+            self.screen.blit(text, textRect)
 
             pygame.display.flip()
             self.clock.tick(self.fps)
