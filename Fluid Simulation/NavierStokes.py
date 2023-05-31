@@ -4,7 +4,7 @@ import numpy as np
 
 
 class FluidSolver:
-    def __init__(self, N, diff, visc, dt):
+    def __init__(self, N, diff, visc, temp_diff, dt):
         """
         Initialize FluidSolver class with given parameters
         
@@ -17,6 +17,7 @@ class FluidSolver:
         self.N = N
         self.dt = dt
         self.diff = diff
+        self.temp_diff = temp_diff
         self.visc = visc
 
         # allocate memory for velocity and density fields
@@ -29,6 +30,8 @@ class FluidSolver:
         self.v_prev = np.zeros(self.dimensions)
         self.density = np.zeros(self.dimensions)
         self.density_prev = np.zeros(self.dimensions)
+        self.temp = np.zeros(self.dimensions)
+        self.temp_prev = np.zeros(self.dimensions)
 
     def add_source(self, x, s):
         x += self.dt*s
@@ -170,9 +173,20 @@ class FluidSolver:
 
         self.advect(0,self.density, self.density_prev, self.u, self.v)
 
+    def temp_step(self):
+        self.add_source(self.temp, self.temp_prev)
+
+        self.temp_prev, self.temp = self.temp, self.temp_prev
+
+        self.diffuse(0, self.temp, self.temp_prev, self.temp_diff)
+
+        self.temp_prev, self.temp = self.temp, self.temp_prev
+
+        self.advect(0,self.temp, self.temp_prev, self.u, self.v)
+
 class Simulation:
-    def __init__(self, N, diff, visc, dt):
-        self.solver = FluidSolver(N, diff, visc, dt)
+    def __init__(self, N, diff, visc, temp_diff, dt):
+        self.solver = FluidSolver(N, diff, visc, temp_diff, dt)
 
     def add_density(self, x, y, amount):
         self.solver.density_prev[(int(x), int(y))] += amount
@@ -189,6 +203,7 @@ class Simulation:
         self.ext_update()
         self.solver.vel_step()
         self.solver.dens_step()
+        self.solver.temp_step()
 
     def get_density(self):
         return self.solver.density
@@ -212,8 +227,8 @@ class WaterSimulation(Simulation):
 
     g = 2
 
-    def __init__(self, N, diff, visc, dt):
-        self.solver = FluidSolver(N, diff, visc, dt)
+    def __init__(self, N, diff, visc, temp_diff, dt):
+        self.solver = FluidSolver(N, diff, visc, temp_diff, dt)
         self.solver.set_bnd = lambda b,x: WaterSimulation.set_bnd(self.solver, b, x)
 
     def apply_gravity(self):

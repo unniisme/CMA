@@ -33,8 +33,8 @@ def density_color(sim, i, j):
 
 if __name__ == '__main__':
 
-    print("N = 64, resolution = 20, force = 70, source = 1000, diff = 0.0, visc = 0.0")
-    sim = Simulator(N=64, resolution=10, force = 70, source=1000, diff = 0.0, visc = 0.0, isWaterSim=True)
+    print("N = 64, resolution = 10, force = 70, source = 1000, diff = 0.0, visc = 0.0, temp_diff = 0.0")
+    sim = Simulator(N=64, resolution=10, force = 70, source=1000, diff = 0.0, visc = 0.0, temp_diff = 0.0, isWaterSim=True)
 
     sim.fluid.ext_update = lambda : ext(sim.fluid)
     sim.density_color = lambda i,j: density_color(sim, i, j)

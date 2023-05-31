@@ -5,7 +5,7 @@ import sys
 
 class Simulator:
 
-    def __init__ (self, N = 20, resolution = 30, force = 5, source = 1000, diff = 0.0, visc = 0.0, isWaterSim=False):
+    def __init__ (self, N = 20, resolution = 30, force = 5, source = 1000, diff = 0.0, visc = 0.0, temp_diff = 0.1, isWaterSim=False):
         self.fps = 60
         self.screenSize = [N*resolution]*2
         self.screen = pygame.display.set_mode(self.screenSize)
@@ -14,16 +14,14 @@ class Simulator:
 
         self.force = force
         self.source = source
-        diff = diff
-        visc = visc
 
         self.gridSize = resolution
         self.dimensions = (N, N)
 
         if isWaterSim:
-            self.fluid = WaterSimulation(N-2, diff, visc, 0.1)
+            self.fluid = WaterSimulation(N-2, diff, visc, temp_diff, 0.1)
         else:
-            self.fluid = Simulation(N-2, diff, visc, 0.1)
+            self.fluid = Simulation(N-2, diff, visc, temp_diff, 0.01)
 
     def DrawSquare(self, gridStart : tuple, length : int, offset : int, colour : tuple = (0,0,255)):
         rect = pygame.Rect(gridStart[0] + offset, gridStart[1] + offset, length - 2*offset, length - 2*offset)
