@@ -4,7 +4,7 @@ Visualizations are using pygame.
 
 ### `NavierStokes.py`
 Contains code on fluid simulation in the fluid solver class.  
-For more information on exact implementational code, visit [reference](#references)  
+For more information on exact implementational code, visit [references](#References)  
 There are also wrapper funtions for holding simulational data.
 
 ### `simulator.py`
@@ -26,3 +26,6 @@ $ python3 text_simulator.py
 $ clear
 ```
 Clears are because it messes up stdout otherwise
+
+### References
+Stam, J. (2003). Real-Time Fluid Dynamics for Games. Alias|Wavefront. Retrieved from https://www.dgp.toronto.edu/public_user/stam/reality/Research/pdf/GDC03.pdf
