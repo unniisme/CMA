@@ -12,11 +12,11 @@ if __name__ == '__main__':
         visc = float(sys.argv[6])
         temp_diff = float(sys.argv[7])
 
-        sim = Simulator(N, resolution, force, source, diff, temp_diff, visc)
+        sim = Simulator(N, resolution, force, source, diff, visc, temp_diff)
 
 
     else:
-        print("Invalid input format. Please enter 6 arguments: N (int), resolution (int), force (int), source (int), diff (float), and visc (float) separated by spaces.")
+        print("Invalid input format. Please enter 6 arguments: N (int), resolution (int), force (int), source (int), diffusion coefficient (float), visc (float) and temparature diffustion coefficient (float) separated by spaces.")
         print("Running using standard values")
         print("64 10 100 3000 0.0 0.0 0.1")
 

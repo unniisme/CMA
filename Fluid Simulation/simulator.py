@@ -23,14 +23,20 @@ class Simulator:
         else:
             self.fluid = Simulation(N-2, diff, visc, temp_diff, 0.01)
 
+        self.get_display_matrix = self.fluid.get_density
+        self.thermals = False
+
     def DrawSquare(self, gridStart : tuple, length : int, offset : int, colour : tuple = (0,0,255)):
         rect = pygame.Rect(gridStart[0] + offset, gridStart[1] + offset, length - 2*offset, length - 2*offset)
         pygame.draw.rect(self.screen, colour, rect)
 
     def density_color(self, i,j):
-        col = round(self.fluid.get_density()[i,j]*255/10)
+        col = round(self.get_display_matrix()[i,j]*255/10)
         col = max(0, min(255,col))
-        return (col, col, col)
+        if not self.thermals:
+            return (col, col, col)
+        else:
+            return (col, 10, 10)
 
     def DrawGrid(self, in_offset : int = 0):
 
@@ -65,6 +71,13 @@ class Simulator:
             for e in pygame.event.get():
                 if e.type == pygame.QUIT:
                     return 0
+                if e.type == pygame.KEYDOWN:
+                    if e.key == pygame.K_r:
+                        self.thermals = not self.thermals
+                        if self.thermals:
+                            self.get_display_matrix = self.fluid.get_temp
+                        else:
+                            self.get_display_matrix = self.fluid.get_density
 
             mouse_pos = pygame.mouse.get_pos()
             mouse_delta = pygame.mouse.get_rel()
@@ -73,6 +86,7 @@ class Simulator:
 
             if pygame.mouse.get_pressed()[0]:
                 self.fluid.add_density(*self.Vector2ToGridCell(mouse_pos), self.source)
+                self.fluid.add_heat(*self.Vector2ToGridCell(mouse_pos), self.source)
                 # self.fluid.add_density(self.Vector2ToGridCell(mouse_pos), self.source)
 
             if pygame.mouse.get_pressed()[2]:

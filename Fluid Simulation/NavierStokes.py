@@ -191,6 +191,9 @@ class Simulation:
     def add_density(self, x, y, amount):
         self.solver.density_prev[(int(x), int(y))] += amount
 
+    def add_heat(self, x, y, amount):
+        self.solver.temp_prev[(int(x), int(y))] += amount
+
     def add_velocity(self, x, y, amountX, amountY):
         self.solver.u_prev[(int(x), int(y))] += amountX
         self.solver.v_prev[(int(x), int(y))] += amountY
@@ -207,6 +210,9 @@ class Simulation:
 
     def get_density(self):
         return self.solver.density
+
+    def get_temp(self):
+        return self.solver.temp
 
     def get_velocity(self, i, j):
         return (self.solver.u[i,j], self.solver.v[i,j])
